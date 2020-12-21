@@ -26,7 +26,7 @@ const int ANGLE_DELTA = 90;
 // ATTIny85 Pins as defined by https://github.com/SpenceKonde/ATTinyCore/blob/master/avr/extras/ATtiny_x5.md
 const int SERVO_PIN = PIN_B4;
 
-const long int LIGHT_SWITCH_BUTTON_CODE = 0xF728D7;
+const long int LIGHT_SWITCH_BUTTON_CODE = 0x14;// YELLOW BUTTON ON REMOTE
 
 
 void setup() {
@@ -66,12 +66,13 @@ void handleReceivedIRData()
 {
   irmp_get_data(&irmp_data);
   interrupts();  // enable interrupts now that we got our data
-  if (!(irmp_data.flags & IRMP_FLAG_REPETITION)) // filter out repeated codes // (irmp_data.command) == LIGHT_SWITCH_BUTTON_CODE)
+  if (!(irmp_data.flags & IRMP_FLAG_REPETITION)  && (irmp_data.command == LIGHT_SWITCH_BUTTON_CODE))
   {
-    DEBUG_PRINTLN("code.");
-    //irmp_result_print(&irmp_data);
     gotCode = 1;
+    DEBUG_PRINT("code:");
+    DEBUG_PRINTLN(irmp_data.command, HEX);
   }
+
 }
 
 void loop() {
