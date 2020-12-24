@@ -30,7 +30,7 @@ const int SERVO_PIN = PIN_B4;
 
 const long int LIGHT_SWITCH_BUTTON_CODE = 0x14;// YELLOW BUTTON ON REMOTE
 unsigned long lastCommandMs = 0 ;   // last command received in Ms
-const int validCommandWindow = 10000; // 10000 ms window of no commands before sleeping
+const int validCommandWindow = 5000; // 5000 ms window of no commands before sleeping
 
 void setup() {
   Serial.begin(9600); // Begin serial communication
@@ -84,7 +84,6 @@ void sleepNow() {
   sleep_cpu();                          // Zzzzzzzzzz...
 
   sleep_disable();                       // first thing after waking from sleep: clear SE bit
-
 }
 
 void loop() {
@@ -92,6 +91,8 @@ void loop() {
   // Only sleep if elapsed time since last command outside of recent window
   if (millis() - lastCommandMs > validCommandWindow) {
     sleepNow();
+    lastCommandMs = millis();                  // Reset timestamp of last command as we wake up
+
   } else {
 
     if (gotCode) {  // awake and doing servo stuff
