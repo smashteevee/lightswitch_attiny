@@ -1,6 +1,9 @@
 #define F_CPU 8000000
 #define __AVR_ATtiny85__
 #include <Servo_ATTinyCore.h>
+#include <avr/interrupt.h>
+#include <avr/sleep.h>
+
 #define DEBUG
 #include "DebugMacros.h"
 
@@ -22,12 +25,12 @@ bool switchState = false;
 const int STARTING_ANGLE = 45;
 int pos = 0;    // variable to store the servo position
 const int ANGLE_DELTA = 90;
-
 // ATTIny85 Pins as defined by https://github.com/SpenceKonde/ATTinyCore/blob/master/avr/extras/ATtiny_x5.md
 const int SERVO_PIN = PIN_B4;
 
 const long int LIGHT_SWITCH_BUTTON_CODE = 0x14;// YELLOW BUTTON ON REMOTE
-
+unsigned long lastCommandMs = 0 ;   // last command received in Ms
+const int validCommandWindow = 10000; // 10000 ms window of no commands before sleeping
 
 void setup() {
   Serial.begin(9600); // Begin serial communication
@@ -38,7 +41,6 @@ void setup() {
   irmp_register_complete_callback_function(&handleReceivedIRData);
 
   myservo.attach(SERVO_PIN);  // attaches the servo to the servo object
-
 
 }
 
@@ -69,20 +71,40 @@ void handleReceivedIRData()
   if (!(irmp_data.flags & IRMP_FLAG_REPETITION)  && (irmp_data.command == LIGHT_SWITCH_BUTTON_CODE))
   {
     gotCode = 1;
-    DEBUG_PRINT("code:");
-    DEBUG_PRINTLN(irmp_data.command, HEX);
+    //  DEBUG_PRINTLN(irmp_data.command, HEX);
   }
 
 }
 
-void loop() {
-  if (gotCode) {
-    gotCode = 0;
-    if (switchState == false) {
-      turnOn();
-    } else {
-      turnOff();
-    }
+void sleepNow() {
 
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);   // Set sleep mode
+  sleep_enable();                          // Enables the sleep bit in the mcucr register so sleep is possible
+
+  sleep_cpu();                          // Zzzzzzzzzz...
+
+  sleep_disable();                       // first thing after waking from sleep: clear SE bit
+
+}
+
+void loop() {
+
+  // Only sleep if elapsed time since last command outside of recent window
+  if (millis() - lastCommandMs > validCommandWindow) {
+    sleepNow();
+  } else {
+
+    if (gotCode) {  // awake and doing servo stuff
+      gotCode = 0;
+      if (switchState == false) {
+        turnOn();
+      } else {
+        turnOff();
+
+      }
+      // Update last command processed time
+      lastCommandMs = millis();
+
+    }
   }
 }
