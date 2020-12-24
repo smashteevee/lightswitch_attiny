@@ -4,6 +4,8 @@
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
 
+#define adc_disable() (ADCSRA &= ~(1<<ADEN)) // disable ADC (before power-off)
+
 #define DEBUG
 #include "DebugMacros.h"
 
@@ -76,8 +78,11 @@ void handleReceivedIRData()
 
 }
 
+/*
+ * Function to sleep and wake - per 3.3V should cut down from 5mA consumption to 239uA
+ */
 void sleepNow() {
-
+  adc_disable();                          // ADC disable saves another 200+ uA
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);   // Set sleep mode
   sleep_enable();                          // Enables the sleep bit in the mcucr register so sleep is possible
 
