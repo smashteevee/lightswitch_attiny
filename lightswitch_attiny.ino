@@ -29,6 +29,7 @@ int pos = 0;    // variable to store the servo position
 const int ANGLE_DELTA = 90;
 // ATTIny85 Pins as defined by https://github.com/SpenceKonde/ATTinyCore/blob/master/avr/extras/ATtiny_x5.md
 const int SERVO_PIN = PIN_B4;
+const int MOSFET_GATE_PIN = PIN_B3;
 
 const long int LIGHT_SWITCH_BUTTON_CODE = 0x14;// YELLOW BUTTON ON REMOTE
 unsigned long lastCommandMs = 0 ;   // last command received in Ms
@@ -42,6 +43,9 @@ void setup() {
   irmp_init(); // Starts the IR receiver
   irmp_register_complete_callback_function(&handleReceivedIRData);
 
+  DDRB |= (1 << MOSFET_GATE_PIN);   // Set Gate Pin as Output
+  PORTB |= (1 << MOSFET_GATE_PIN); // Set Mosfet Gate Pin HIGH to turn on Servo Power Supply
+  delay(3000);
   myservo.attach(SERVO_PIN);  // attaches the servo to the servo object
 
 }
@@ -82,6 +86,10 @@ void handleReceivedIRData()
  * Function to sleep and wake - per 3.3V should cut down from 5mA consumption to 239uA
  */
 void sleepNow() {
+  // TODO: Disable interrupts from happening here?
+  PORTB &= ~(1 << MOSFET_GATE_PIN);              // Set Mosfet Gate Pin LOW to turn off Supply
+  myservo.detach();                                        // Detach Servo control
+  
   adc_disable();                          // ADC disable saves another 200+ uA
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);   // Set sleep mode
   sleep_enable();                          // Enables the sleep bit in the mcucr register so sleep is possible
@@ -89,6 +97,8 @@ void sleepNow() {
   sleep_cpu();                          // Zzzzzzzzzz...
 
   sleep_disable();                       // first thing after waking from sleep: clear SE bit
+  PORTB |= (1 << MOSFET_GATE_PIN);       // Turn Mosfet Gate Pin HIGH to turn on Servo Supply
+  myservo.attach(SERVO_PIN);             // re-attach servo control TODO: Move into function
 }
 
 void loop() {
