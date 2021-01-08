@@ -3,8 +3,8 @@
 #include <Servo_ATTinyCore.h>
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
+#include <avr/power.h>
 
-#define adc_disable() (ADCSRA &= ~(1<<ADEN)) // disable ADC (before power-off)
 
 //#define DEBUG
 #include "DebugMacros.h"
@@ -40,14 +40,20 @@ void setup() {
   Serial.begin(9600); // Begin serial communication
   ACSR &= ~(1 << ACIE); // Disable RX , only use Tx
   ACSR |= ~(1 << ACD);
+#else
+  // Set unused pins to low
+  PORTB &= ~(1 << PIN_PB0);  
+  PORTB &= ~(1 << PIN_PB1); 
 #endif
 
   irmp_init(); // Starts the IR receiver
   irmp_register_complete_callback_function(&handleReceivedIRData);
-
+ 
+  
+  
   DDRB |= (1 << MOSFET_GATE_PIN);   // Set Gate Pin as Output
   PORTB |= (1 << MOSFET_GATE_PIN); // Set Mosfet Gate Pin HIGH to turn on Servo Power Supply
-  delay(3000);
+  
   myservo.attach(SERVO_PIN);  // attaches the servo to the servo object
 
 }
@@ -110,15 +116,26 @@ void sleepNow() {
   PORTB &= ~(1 << MOSFET_GATE_PIN);              // Set Mosfet Gate Pin LOW to turn off Supply
   myservo.detach();                                        // Detach Servo control
 
-  adc_disable();                          // ADC disable saves another 200+ uA
+  // disable ADC
+  ADCSRA &= ~(1<<ADEN);
+  power_adc_disable();
+ 
+  
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);   // Set sleep mode
   sleep_enable();                          // Enables the sleep bit in the mcucr register so sleep is possible
 
   sleep_cpu();                          // Zzzzzzzzzz...
 
   sleep_disable();                       // first thing after waking from sleep: clear SE bit
+
+  // re-enable ADC
+  power_adc_enable();
+  ADCSRA |= (1 << ADEN);
+  
   PORTB |= (1 << MOSFET_GATE_PIN);       // Turn Mosfet Gate Pin HIGH to turn on Servo Supply
   myservo.attach(SERVO_PIN);             // re-attach servo control TODO: Move into function
+
+
 }
 
 /*
