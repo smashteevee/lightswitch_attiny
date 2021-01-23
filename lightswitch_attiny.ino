@@ -24,13 +24,14 @@ volatile byte gotCode = 0;
 volatile bool turnSwitchOn = false;
 
 const int STARTING_ANGLE = 90;
-const int ANGLE_DELTA = 45;
+const int PUSH_ANGLE = 15;
+const int PULL_ANGLE = 160;
 // ATTIny85 Pins per https://github.com/SpenceKonde/ATTinyCore/blob/master/avr/extras/ATtiny_x5.md
 const int SERVO_PIN = PIN_B4;
 const int MOSFET_GATE_PIN = PIN_B3;
 
-const long int LIGHT_SWITCH_BUTTON_ON_CODE = 0x3;// On BUTTON ON REMOTE
-const long int LIGHT_SWITCH_BUTTON_OFF_CODE = 0x2; // Off Button
+const long int LIGHT_SWITCH_BUTTON_ON_CODE = 0x2;// On BUTTON ON REMOTE
+const long int LIGHT_SWITCH_BUTTON_OFF_CODE = 0x3; // Off Button
 
 unsigned long lastCommandMs = 0 ;   // last command received in Ms
 const int validCommandWindow = 5000; // 5000 ms window of no commands before sleeping
@@ -40,15 +41,10 @@ void setup() {
   Serial.begin(9600); // Begin serial communication
   ACSR &= ~(1 << ACIE); // Disable RX , only use Tx
   ACSR |= ~(1 << ACD);
-#else
-  // Set unused pins to low
-  PORTB &= ~(1 << PIN_PB0);  
-  PORTB &= ~(1 << PIN_PB1); 
 #endif
 
   irmp_init(); // Starts the IR receiver
   irmp_register_complete_callback_function(&handleReceivedIRData);
- 
   
   
   DDRB |= (1 << MOSFET_GATE_PIN);   // Set Gate Pin as Output
@@ -64,14 +60,13 @@ void setup() {
 void toggleSwitch(bool turnOn) {
   int pos = 0;
   
-  if (turnOn) { // Turn on light
-    for (pos = STARTING_ANGLE; pos >= ANGLE_DELTA; pos -= 1) { // goes from pos to Off rocker press
-      // in steps of 1 degree
+  if (turnOn) { // puah rocker light
+    for (pos = STARTING_ANGLE; pos >= PUSH_ANGLE; pos -= 1) { // goes from pos to rocker push
       myservo.write(pos);              // tell servo to go to position in variable 'pos'
-      delay(15);                       // waits 15ms for the servo to reach the position
+      delay(5);                       // waits 15ms for the servo to reach the position
     }
-  } else { // Turn off light
-      for (pos = STARTING_ANGLE; pos <= STARTING_ANGLE + ANGLE_DELTA; pos += 1) { // goes from pos to On rocker press
+  } else { // push rocker light
+      for (pos = STARTING_ANGLE; pos <= PULL_ANGLE; pos += 1) { // goes from pos to rocker pull
 
       myservo.write(pos);              // tell servo to go to position in variable 'pos'
       delay(15);                       // waits 15ms for the servo to reach the position
@@ -79,6 +74,7 @@ void toggleSwitch(bool turnOn) {
   }
   
   DEBUG_PRINTLN(pos);
+  delay(15);          // delay to give time to reach
   // Reset to neutral position as switch may be toggled manually by people
   myservo.write(STARTING_ANGLE);
 
